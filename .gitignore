@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+
+bot-service
+metrics-service
+
+coverage.out
+tmp/
+dist/

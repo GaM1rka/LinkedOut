@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+.env
+.env.*
+!.env.example
+
+bot-service
+metrics-service
+
+tmp/
+dist/
+coverage.out
