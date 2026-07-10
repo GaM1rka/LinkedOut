@@ -55,10 +55,13 @@ func NewRouter(store *storage.Store, log *slog.Logger) http.Handler {
 // @Failure 503 {object} errorResponse
 // @Router /health [get]
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
+	h.logRequest("health check requested", r)
 	if err := h.store.Ping(r.Context()); err != nil {
+		h.log.Error("health check failed", "error", err)
 		writeError(w, http.StatusServiceUnavailable, "database is unavailable")
 		return
 	}
+	h.log.Info("health check succeeded", "method", r.Method, "path", r.URL.Path)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -82,12 +85,14 @@ func (h *Handler) upsertUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("upsert user request received", r, "telegram_id", input.TelegramID, "username", input.Username, "first_name", input.FirstName)
 	user, err := h.store.UpsertUser(r.Context(), input)
 	if err != nil {
-		h.log.Error("upsert user failed", "error", err)
+		h.log.Error("upsert user failed", "error", err, "telegram_id", input.TelegramID)
 		writeError(w, http.StatusInternalServerError, "failed to upsert user")
 		return
 	}
+	h.log.Info("upsert user completed", "telegram_id", user.TelegramID, "user_id", user.ID)
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -111,12 +116,14 @@ func (h *Handler) startInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("start interview request received", r, "telegram_id", input.TelegramID, "target_role", input.TargetRole, "project_type", input.ProjectType)
 	interview, err := h.store.StartInterview(r.Context(), input)
 	if err != nil {
-		h.log.Error("start interview failed", "error", err)
+		h.log.Error("start interview failed", "error", err, "telegram_id", input.TelegramID)
 		writeError(w, http.StatusInternalServerError, "failed to start interview")
 		return
 	}
+	h.log.Info("start interview completed", "telegram_id", input.TelegramID, "interview_id", interview.InterviewID)
 	writeJSON(w, http.StatusOK, interview)
 }
 
@@ -142,11 +149,13 @@ func (h *Handler) addAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("add answer request received", r, "interview_id", interviewID, "question_order", input.QuestionOrder)
 	if err := h.store.AddAnswer(r.Context(), interviewID, input); err != nil {
-		h.log.Error("add answer failed", "error", err)
+		h.log.Error("add answer failed", "error", err, "interview_id", interviewID)
 		writeError(w, http.StatusInternalServerError, "failed to add answer")
 		return
 	}
+	h.log.Info("add answer completed", "interview_id", interviewID, "question_order", input.QuestionOrder)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -175,12 +184,14 @@ func (h *Handler) completeInterview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	h.logRequest("complete interview request received", r, "interview_id", interviewID)
 	completed, err := h.store.CompleteInterview(r.Context(), interviewID, input)
 	if err != nil {
-		h.log.Error("complete interview failed", "error", err)
+		h.log.Error("complete interview failed", "error", err, "interview_id", interviewID)
 		writeError(w, http.StatusInternalServerError, "failed to complete interview")
 		return
 	}
+	h.log.Info("complete interview completed", "interview_id", interviewID, "duration_seconds", completed.DurationSeconds)
 	writeJSON(w, http.StatusOK, completed)
 }
 
@@ -204,12 +215,14 @@ func (h *Handler) createGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("create generation request received", r, "interview_id", input.InterviewID)
 	generation, err := h.store.CreateGeneration(r.Context(), input)
 	if err != nil {
-		h.log.Error("create generation failed", "error", err)
+		h.log.Error("create generation failed", "error", err, "interview_id", input.InterviewID)
 		writeError(w, http.StatusInternalServerError, "failed to create generation")
 		return
 	}
+	h.log.Info("create generation completed", "interview_id", input.InterviewID, "generation_id", generation.GenerationID)
 	writeJSON(w, http.StatusOK, generation)
 }
 
@@ -233,11 +246,13 @@ func (h *Handler) createFeedback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("create feedback request received", r, "interview_id", input.InterviewID, "generation_id", input.GenerationID)
 	if err := h.store.CreateFeedback(r.Context(), input); err != nil {
-		h.log.Error("create feedback failed", "error", err)
+		h.log.Error("create feedback failed", "error", err, "interview_id", input.InterviewID, "generation_id", input.GenerationID)
 		writeError(w, http.StatusInternalServerError, "failed to create feedback")
 		return
 	}
+	h.log.Info("create feedback completed", "interview_id", input.InterviewID, "generation_id", input.GenerationID)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -261,11 +276,13 @@ func (h *Handler) createManualReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("create manual review request received", r, "generation_id", input.GenerationID, "reviewer_telegram_id", input.ReviewerTelegramID, "status", input.Status)
 	if err := h.store.CreateManualReview(r.Context(), input); err != nil {
-		h.log.Error("create manual review failed", "error", err)
+		h.log.Error("create manual review failed", "error", err, "generation_id", input.GenerationID)
 		writeError(w, http.StatusInternalServerError, "failed to create manual review")
 		return
 	}
+	h.log.Info("create manual review completed", "generation_id", input.GenerationID, "status", input.Status)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -287,12 +304,14 @@ func (h *Handler) pendingReviews(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
+	h.logRequest("pending reviews requested", r, "limit", limit)
 	reviews, err := h.store.ListPendingReviews(r.Context(), limit)
 	if err != nil {
-		h.log.Error("list pending reviews failed", "error", err)
+		h.log.Error("list pending reviews failed", "error", err, "limit", limit)
 		writeError(w, http.StatusInternalServerError, "failed to list pending reviews")
 		return
 	}
+	h.log.Info("pending reviews completed", "limit", limit, "count", len(reviews))
 	writeJSON(w, http.StatusOK, reviews)
 }
 
@@ -303,12 +322,14 @@ func (h *Handler) pendingReviews(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} metrics.Summary
 // @Router /api/v1/metrics/summary [get]
 func (h *Handler) metricsSummary(w http.ResponseWriter, r *http.Request) {
+	h.logRequest("metrics summary requested", r)
 	summary, err := h.store.Summary(r.Context())
 	if err != nil {
 		h.log.Error("metrics summary failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to calculate metrics")
 		return
 	}
+	h.log.Info("metrics summary completed", "started_interviews", summary.StartedInterviews, "completed_interviews", summary.CompletedInterviews, "completion_rate", summary.CompletionRate, "ready_to_use_rate", summary.ReadyToUseRate, "mvp_success", summary.MVPSuccess)
 	writeJSON(w, http.StatusOK, summary)
 }
 
@@ -332,11 +353,13 @@ func (h *Handler) createEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logRequest("create event request received", r, "event_type", input.EventType, "telegram_id", input.TelegramID, "interview_id", input.InterviewID)
 	if err := h.store.CreateEvent(r.Context(), input); err != nil {
-		h.log.Error("create event failed", "error", err)
+		h.log.Error("create event failed", "error", err, "event_type", input.EventType)
 		writeError(w, http.StatusInternalServerError, "failed to create event")
 		return
 	}
+	h.log.Info("create event completed", "event_type", input.EventType, "telegram_id", input.TelegramID, "interview_id", input.InterviewID)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -357,6 +380,11 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func (h *Handler) logRequest(action string, r *http.Request, fields ...any) {
+	args := append([]any{"method", r.Method, "path", r.URL.Path}, fields...)
+	h.log.Info(action, args...)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

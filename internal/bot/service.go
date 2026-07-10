@@ -102,6 +102,7 @@ func (s *Service) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
 
 func (s *Service) handleStart(ctx context.Context, msg *tgbotapi.Message) {
 	userID := msg.From.ID
+	s.log.Info("start command received", "telegram_id", userID, "username", msg.From.UserName)
 	_, _ = s.metrics.UpsertUser(ctx, metricsclient.UpsertUserRequest{
 		TelegramID: userID,
 		Username:   msg.From.UserName,
@@ -178,6 +179,7 @@ func (s *Service) startInterviewFlow(ctx context.Context, userID int64, chatID i
 		State:      StateChoosingRole,
 		StartedAt:  time.Now().UTC(),
 	})
+	s.log.Info("interview flow started", "telegram_id", userID, "chat_id", chatID)
 	s.trackEvent(ctx, userID, "", "interview_start_clicked", nil)
 	s.sendWithKeyboard(chatID, "Для какой роли упаковываем проект?", roleKeyboard())
 }
@@ -250,6 +252,7 @@ func (s *Service) handleInterviewAnswer(ctx context.Context, msg *tgbotapi.Messa
 	}); err != nil {
 		s.log.Warn("failed to save answer in metrics-service", "telegram_id", msg.From.ID, "error", err)
 	}
+	s.log.Info("interview answer recorded", "telegram_id", msg.From.ID, "interview_id", session.InterviewID, "question_order", qa.Order)
 	s.trackEvent(ctx, msg.From.ID, session.InterviewID, "answer_saved", map[string]any{"question_order": qa.Order})
 
 	if len(session.Answers) >= maxQuestions {
@@ -318,6 +321,7 @@ func (s *Service) generateResult(ctx context.Context, chatID int64, session *Ses
 		s.log.Warn("failed to save generation in metrics-service", "telegram_id", session.TelegramID, "error", err)
 	} else {
 		session.GenerationID = created.GenerationID
+		s.log.Info("resume generation saved", "telegram_id", session.TelegramID, "interview_id", session.InterviewID, "generation_id", created.GenerationID)
 	}
 	s.trackEvent(ctx, session.TelegramID, session.InterviewID, "generation_created", map[string]any{"generation_id": session.GenerationID})
 
@@ -409,6 +413,7 @@ func (s *Service) handleStats(ctx context.Context, msg *tgbotapi.Message) {
 		return
 	}
 
+	s.log.Info("stats command requested", "telegram_id", msg.From.ID, "chat_id", msg.Chat.ID)
 	summary, err := s.metrics.Summary(ctx)
 	if err != nil {
 		s.log.Warn("failed to load stats", "telegram_id", msg.From.ID, "error", err)
@@ -416,6 +421,7 @@ func (s *Service) handleStats(ctx context.Context, msg *tgbotapi.Message) {
 		return
 	}
 
+	s.log.Info("stats command completed", "telegram_id", msg.From.ID, "started_interviews", summary.StartedInterviews, "completed_interviews", summary.CompletedInterviews, "completion_rate", summary.CompletionRate, "mvp_success", summary.MVPSuccess)
 	text := fmt.Sprintf(`Статистика LinkedOut
 
 Начато интервью: %d
