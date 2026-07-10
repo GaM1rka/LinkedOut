@@ -26,14 +26,30 @@ type Config struct {
 }
 
 func Load() Config {
+	metricsHTTPPort := env("METRICS_HTTP_PORT", "")
+	if metricsHTTPPort == "" {
+		metricsHTTPPort = env("PORT", "8080")
+	}
+
+	metricsBaseURL := strings.TrimSpace(env("METRICS_BASE_URL", ""))
+	if metricsBaseURL == "" {
+		railwayDomain := strings.TrimSpace(env("RAILWAY_PUBLIC_DOMAIN", ""))
+		if railwayDomain != "" {
+			metricsBaseURL = "https://" + railwayDomain
+		} else {
+			metricsBaseURL = "http://localhost:8080"
+		}
+	}
+	metricsBaseURL = strings.TrimRight(metricsBaseURL, "/")
+
 	cfg := Config{
 		BotToken:          env("BOT_TOKEN", ""),
 		BotAdminIDs:       parseAdminIDs(env("BOT_ADMIN_IDS", "")),
 		LLMAPIKey:         env("LLM_API_KEY", ""),
 		LLMBaseURL:        env("LLM_BASE_URL", ""),
 		LLMModel:          env("LLM_MODEL", "skald-loki"),
-		MetricsHTTPPort:   env("METRICS_HTTP_PORT", "8080"),
-		MetricsBaseURL:    strings.TrimRight(env("METRICS_BASE_URL", "http://localhost:8080"), "/"),
+		MetricsHTTPPort:   metricsHTTPPort,
+		MetricsBaseURL:    metricsBaseURL,
 		MigrationsDir:     env("MIGRATIONS_DIR", "migrations"),
 		HTTPClientTimeout: 30 * time.Second,
 	}

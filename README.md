@@ -18,7 +18,7 @@ RAG, GitHub/HH/LinkedIn-интеграции, оплата и веб-фронт�
 cp .env.example .env
 ```
 
-Заполните в `.env` реальные значения:
+Минимально нужны:
 
 ```env
 BOT_TOKEN=
@@ -26,11 +26,32 @@ BOT_ADMIN_IDS=
 LLM_API_KEY=
 LLM_BASE_URL=
 LLM_MODEL=skald-loki
+
+# локальный запуск через docker compose
+METRICS_HTTP_PORT=8080
+METRICS_BASE_URL=http://metrics-service:8080
 ```
 
 Секреты не хранятся в репозитории.
 
-## Запуск
+### Для Railway
+
+В Railway для сервиса bot-service лучше явно задать:
+
+```env
+METRICS_BASE_URL=https://<домен-metrics-service>.up.railway.app
+```
+
+Для сервиса metrics-service:
+
+```env
+PORT=8080
+METRICS_HTTP_PORT=8080
+```
+
+Если у вас есть `RAILWAY_PUBLIC_DOMAIN`, приложение само подставит публичный URL для metrics-service.
+
+## Локальный запуск
 
 ```bash
 docker compose up --build
@@ -40,6 +61,7 @@ docker compose up --build
 
 - metrics-service: `http://localhost:8080`
 - PostgreSQL: `localhost:5432`
+- Swagger: `http://localhost:8080/swagger/index.html`
 
 ## Swagger
 
@@ -62,6 +84,8 @@ swag init -g cmd/metrics-service/main.go -o docs
 - `/stats` — админская статистика MVP.
 - `/pending_reviews` — последние 5 генераций без ручной проверки.
 - `/review <generation_id> <status> <comment>` — сохранить ручную проверку.
+
+Если бот не может достучаться до metrics-service, обычно причина в том, что в `METRICS_BASE_URL` стоит внутренний Docker hostname вроде `http://metrics-service:8080`, а в проде нужен публичный URL Railway.
 
 Статусы ручной проверки:
 
@@ -120,3 +144,8 @@ fail_other
 ```bash
 go test ./...
 ```
+
+## Полезные заметки
+
+- Логи сейчас добавлены и в bot-service, и в metrics-service, чтобы было проще отслеживать путь запроса от Telegram-бота до API метрик.
+- Для Railway важно, чтобы бот обращался не к `metrics-service`, а к реальному публичному адресу сервиса метрик.
