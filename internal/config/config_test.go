@@ -1,5 +1,4 @@
 package config
-package config
 
 import "testing"
 
@@ -30,5 +29,15 @@ func TestLoadPrefersExplicitMetricsBaseURL(t *testing.T) {
 	cfg := Load()
 	if cfg.MetricsBaseURL != "https://metrics-service.example.com" {
 		t.Fatalf("expected explicit metrics base URL to be used, got %q", cfg.MetricsBaseURL)
+	}
+}
+
+func TestLoadUsesRailwayPublicDomainWhenExplicitValueIsInternalDockerHost(t *testing.T) {
+	t.Setenv("METRICS_BASE_URL", "http://metrics-service:8080")
+	t.Setenv("RAILWAY_PUBLIC_DOMAIN", "metrics-example.up.railway.app")
+
+	cfg := Load()
+	if cfg.MetricsBaseURL != "https://metrics-example.up.railway.app" {
+		t.Fatalf("expected Railway public domain to override internal docker host, got %q", cfg.MetricsBaseURL)
 	}
 }

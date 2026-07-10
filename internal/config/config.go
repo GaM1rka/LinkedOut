@@ -39,6 +39,11 @@ func Load() Config {
 		} else {
 			metricsBaseURL = "http://localhost:8080"
 		}
+	} else if isLegacyMetricsBaseURL(metricsBaseURL) {
+		railwayDomain := strings.TrimSpace(env("RAILWAY_PUBLIC_DOMAIN", ""))
+		if railwayDomain != "" {
+			metricsBaseURL = "https://" + railwayDomain
+		}
 	}
 	metricsBaseURL = strings.TrimRight(metricsBaseURL, "/")
 
@@ -63,6 +68,11 @@ func env(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func isLegacyMetricsBaseURL(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	return raw == "http://metrics-service" || raw == "http://metrics-service:8080" || raw == "metrics-service" || raw == "metrics-service:8080" || raw == "http://localhost" || raw == "http://localhost:8080"
 }
 
 func parseAdminIDs(raw string) []int64 {
