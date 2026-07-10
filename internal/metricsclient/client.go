@@ -205,6 +205,7 @@ func (c *Client) do(ctx context.Context, method, path string, input any, out any
 
 	var lastErr error
 	for attempt := 1; attempt <= 2; attempt++ {
+		c.log.Info("metrics request started", "method", method, "path", path, "attempt", attempt)
 		req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
 		if err != nil {
 			return fmt.Errorf("create metrics request: %w", err)
@@ -232,6 +233,7 @@ func (c *Client) do(ctx context.Context, method, path string, input any, out any
 				return fmt.Errorf("decode metrics response: %w", err)
 			}
 		}
+		c.log.Info("metrics request completed", "method", method, "path", path, "attempt", attempt, "status_code", resp.StatusCode)
 		return nil
 	}
 
